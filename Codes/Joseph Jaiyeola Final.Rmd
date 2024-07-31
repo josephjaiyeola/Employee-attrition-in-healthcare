@@ -1,0 +1,984 @@
+---
+title: "Personal_project"
+author: "Joseph Jaiyeola"
+date: "2022-10-15"
+output: html_document
+---
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(readr)
+library(stringr)
+library(GGally)
+library(gtools)
+library(caret)
+library(car)
+library(scales)
+library(lmtest)
+library(ggplot2)
+library(plotly)
+library(ggthemes)
+library(MLmetrics)
+library(performance)
+library(ggpubr)
+
+
+library(logistf)
+library(ggplot2)
+library(tidyverse)
+library(corrplot)
+library(lattice)
+library(caret)
+library(MASS)
+library(caTools)
+
+
+
+library(gam)
+library(tidyverse)
+library(car)
+library(broom)
+library(DescTools)
+library(ROCR)
+library(lmtest)
+```
+
+
+
+
+```{r}
+library(readr)
+healthcare <- read_csv("watson_healthcare_modified.csv")
+```
+
+
+```{r}
+str(healthcare)
+```
+
+# Check if there is any missing
+```{r}
+anyNA(healthcare)
+```
+
+# Check if any duplicate data
+
+```{r}
+healthcare[duplicated(healthcare),]
+
+# no duplicated data
+```
+
+
+```{r}
+glimpse(healthcare)
+
+#This dataset consist of 35 features (variables) and 1,676 observations (rows data). There are 9 categorical columns and 26 numerical columns.
+# Make age a categorical variable 
+
+```
+
+# Here are the summary of the raw dataset:
+
+```{r}
+summary(healthcare 
+        %>% select_if(is.numeric))
+```
+
+
+# There are some variables that can be removed as they do not give useful information nor relevant to the dependent variable
+
+```{r}
+#healthcare <- healthcare %>% select(-c("Over18", "EmployeeCount", "EmployeeID", "StandardHours", "HourlyRate", "MonthlyRate", "DailyRate"))
+
+healthcare <- healthcare [-c(22, 10, 1, 27, 13, 20, 5)]
+str(healthcare)
+
+# Now the number of columns reduced from 35 to 28. Now let’s check if there is a missing value:
+```
+
+
+
+
+# Here is the first 6 data.
+```{r}
+head(healthcare)
+```
+
+
+# There was a level called admin and adminstration, so I made them same level
+
+```{r}
+#table(healthcare$JobRole)
+
+healthcare$JobRole<- car::Recode(healthcare$JobRole,
+                     recodes="'Admin'='Administrative'",
+                    as.factor=T)
+```
+
+
+
+
+# Socio Demographic Associated variable- Gender,Education Background, Age
+
+```{r}
+detach(package: MASS, unload = TRUE)
+
+#library(conflicted)
+#conflict_prefer("select", "dplyr")
+
+d1_plot <- healthcare %>% 
+  select(Gender, Attrition) %>% 
+  count(Gender, Attrition) %>% 
+  ggplot(aes(x=Gender, y=n)) +
+  geom_col(aes(fill=factor(Attrition, levels = c("Yes", "No")))) +
+  geom_text(aes(label=n, fill = factor(Attrition, levels = c("Yes", "No"))),
+            position = position_stack(vjust = 0.2, reverse = F), size=4) +
+  labs(fill = "Attrition", y="Count") + theme_minimal() +
+  theme(axis.text.x = element_text(angle = 40),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank())
+
+
+d2_plot <- healthcare %>%
+  select(EducationField, Attrition) %>% 
+  count(EducationField, Attrition) %>% 
+  ggplot(aes(x=EducationField, y=n)) +
+  geom_col(aes(fill=factor(Attrition, levels = c("Yes", "No")))) +
+  geom_text(aes(label=n, fill = factor(Attrition, levels = c("Yes", "No"))),
+            position = position_stack(vjust = 0.5, reverse = F), size=4) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 40),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  labs(fill = "Attrition", y = "")
+
+
+d3_plot <- healthcare %>% 
+  select(Department, Attrition) %>% count(Department, Attrition) %>% 
+  ggplot(aes(x=Department, y=n)) +
+  geom_col(aes(fill=factor(Attrition, levels = c("Yes", "No")))) +
+  geom_text(aes(label=n, fill = factor(Attrition, levels = c("Yes", "No"))),
+            position = position_stack(vjust = 0.5, reverse = F)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 40),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  scale_x_discrete(labels=c("Cardiology","Maternity","Neurology")) +
+  labs(fill = "Attrition", y = "Count")
+
+d4_plot <- healthcare %>% 
+  select(JobRole, Attrition) %>% count(JobRole, Attrition) %>% 
+  ggplot(aes(x=JobRole, y=n)) +
+  geom_col(aes(fill=factor(Attrition, levels = c("Yes", "No")))) +
+  geom_text(aes(label=n, fill = factor(Attrition, levels = c("Yes", "No"))),
+            position = position_stack(vjust = 0.3, reverse = F),size=3.5) +
+  coord_flip() +
+  theme_minimal() + 
+  theme(#axis.text.x = element_text(angle = 90),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  labs(fill = "Attrition",
+       x = "Job Role", y = "Count")
+
+d5_plot <- healthcare %>%
+  select(JobLevel, Attrition) %>% count(JobLevel, Attrition) %>% 
+  ggplot(aes(x=JobLevel, y=n)) +
+  geom_col(aes(fill=factor(Attrition, levels = c("Yes", "No")))) +
+  geom_text(aes(label=n, fill = factor(Attrition, levels = c("Yes", "No"))),
+            position = position_stack(vjust = 0.8, reverse = F)) +
+  theme_minimal() +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  labs(fill = "Attrition",
+       x = "Job Level", y="")
+
+d6_plot <- healthcare %>%
+  mutate(Age = as.factor(
+    ifelse(Age < 20, "18-19",
+        ifelse((Age >= 20) & (Age <= 25), "20-25",
+          ifelse((Age >= 26) & (Age <= 30), "26-30",
+            ifelse((Age >= 31) & (Age <= 35), "31-35",
+              ifelse((Age >= 36) & (Age <= 40), "36-40",
+                ifelse((Age >= 41) & (Age <= 45), "41-45",
+                  ifelse((Age >= 46) & (Age <= 50), "46-50",
+                    ifelse((Age >= 51) & (Age <= 55), "51-55", ">55"
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    ) 
+  ) %>% 
+  group_by(Age, Attrition) %>% count(Age, Attrition) %>% 
+  ggplot(aes(x=factor(Age, levels = c("18-19", "20-25", "26-30", "31-35", "36-40",
+                                      "41-45", "46-50", "51-55", ">55")), 
+             y=n)) +
+  geom_col(aes(fill=factor(Attrition, levels = c("Yes", "No")))) +
+  geom_text(aes(label=n, fill = factor(Attrition, levels = c("Yes", "No"))),
+            position = position_stack(vjust = 0.3, reverse = F),size=3) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90),
+         panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  labs(fill = "Attrition", x = "Age", y = "")
+
+demography_plot <- ggarrange(d1_plot, d2_plot, d3_plot, d5_plot,
+                      ncol = 2, nrow = 2, 
+                      common.legend = T, 
+                      legend = "bottom")
+demography_plot
+```
+
+```{r}
+demography_plot2 <- ggarrange(d4_plot, d6_plot,
+                      ncol = 2, nrow = 1, 
+                      common.legend = T, 
+                      legend = "bottom")
+demography_plot2
+```
+
+# Worker Experiences variables
+
+
+```{r}
+# 1. TotalWorkingYears
+plot_exp1 <- healthcare %>% select(TotalWorkingYears, Attrition) %>% 
+  mutate(binning_workingyears = as.factor(
+                                ifelse(TotalWorkingYears <= 4, "0-4", 
+                                  ifelse((TotalWorkingYears >= 5 & TotalWorkingYears <= 9), "5-9",
+                                    ifelse((TotalWorkingYears >= 10 & TotalWorkingYears <= 14), "10-14",
+                                      ifelse((TotalWorkingYears >= 15 & TotalWorkingYears <= 19), "15-19",
+                                        ifelse((TotalWorkingYears >= 20 & TotalWorkingYears <= 24), "20-24",
+                                          ifelse((TotalWorkingYears >= 25 & TotalWorkingYears <= 29), "25-29",
+                                            ifelse((TotalWorkingYears >= 26 & TotalWorkingYears <= 29), "26-29",
+                                              ifelse((TotalWorkingYears >= 30 & TotalWorkingYears <= 34), "30-34",
+                                                ifelse((TotalWorkingYears >= 35 & TotalWorkingYears <= 39), "35-39", ">=40"
+                                                      )
+                                                    )
+                                                  )
+                                                )
+                                              )
+                                            )
+                                          )
+                                        )
+                                      )
+                                )
+         ) %>% 
+  count(binning_workingyears, Attrition) %>% 
+  ggplot(aes(x=factor(binning_workingyears, levels = c("0-4", "5-9", "10-14", "15-19", "20-24",
+                                                       "25-29", "26-29", "30-34", "35-39", ">=40")), 
+             y=n)) +
+  geom_col(aes(fill=factor(Attrition, levels = c("Yes", "No")))) +
+  geom_text(aes(label=n, fill = factor(Attrition, levels = c("Yes", "No"))),
+            position = position_stack(vjust = 0.3, reverse = F), size=3) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 40),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  labs(
+    title="Total Working Experience",
+    fill = "Attrition", x = "Total Working (Years)", y = ""
+    )
+
+
+# 2.NumCompaniesWorked
+plot_exp2 <- healthcare %>% select(NumCompaniesWorked, Attrition) %>% 
+  mutate(binning = as.factor(
+                                ifelse(NumCompaniesWorked <= 1, "0-1", 
+                                  ifelse((NumCompaniesWorked >= 2 & NumCompaniesWorked <= 3), "2-3",
+                                    ifelse((NumCompaniesWorked >= 4 & NumCompaniesWorked <= 5), "4-5",
+                                      ifelse((NumCompaniesWorked >= 6 & NumCompaniesWorked <= 7), "6-7", ">7"
+                                            )
+                                          )
+                                        )
+                                      )
+                                )
+         ) %>% 
+  count(binning, Attrition) %>% 
+  ggplot(aes(x=factor(binning, levels = c("0-1", "2-3", "4-5", "6-7",">7")), 
+             y=n)) +
+  geom_col(aes(fill=factor(Attrition, levels = c("Yes", "No")))) +
+  geom_text(aes(label=n, fill = factor(Attrition, levels = c("Yes", "No"))),
+            position = position_stack(vjust = 0.5, reverse = F)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 40),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  labs(
+    title="Total Company Worked",
+    fill = "Attrition", x = "Total Company Worked", y = ""
+    )
+
+# 3.YearsAtCompany
+plot_exp3 <- healthcare %>% select(YearsAtCompany, Attrition) %>% 
+  mutate(binning_years = as.factor(
+                                ifelse(YearsAtCompany <= 4, "0-4", 
+                                  ifelse((YearsAtCompany >= 5 & YearsAtCompany <= 9), "5-9",
+                                    ifelse((YearsAtCompany >= 10 & YearsAtCompany <= 14), "10-14",
+                                      ifelse((YearsAtCompany >= 15 & YearsAtCompany <= 19), "15-19",
+                                        ifelse((YearsAtCompany >= 20 & YearsAtCompany <= 24), "20-24",
+                                          ifelse((YearsAtCompany >= 25 & YearsAtCompany <= 29), "25-29",
+                                            ifelse((YearsAtCompany >= 26 & YearsAtCompany <= 29), "26-29",
+                                              ifelse((YearsAtCompany >= 30 & YearsAtCompany <= 34), "30-34",
+                                                ifelse((YearsAtCompany >= 35 & YearsAtCompany <= 39), "35-39", ">=40"
+                                                      )
+                                                    )
+                                                  )
+                                                )
+                                              )
+                                            )
+                                          )
+                                        )
+                                      )
+                                )
+         ) %>% 
+  count(binning_years, Attrition) %>% 
+  ggplot(aes(x=factor(binning_years, levels = c("0-4", "5-9", "10-14", "15-19", "20-24",
+                                                       "25-29", "26-29", "30-34", "35-39", ">=40")), 
+             y=n)) +
+  geom_col(aes(fill=factor(Attrition, levels = c("Yes", "No")))) +
+  geom_text(aes(label=n, fill = factor(Attrition, levels = c("Yes", "No"))),
+            position = position_stack(vjust = 0.2, reverse = F), size=3) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 40),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  labs(
+    title="Years at Company",
+    fill = "Attrition", x = "Years at Company", y = ""
+    )
+
+# 4.NumCompaniesWorked
+plot_exp4 <- healthcare %>% select(TrainingTimesLastYear, Attrition) %>% 
+  mutate(binning = as.factor(
+                                ifelse(TrainingTimesLastYear <= 1, "0-1", 
+                                  ifelse((TrainingTimesLastYear >= 2 & TrainingTimesLastYear <= 3), "2-3",
+                                    ifelse((TrainingTimesLastYear >= 4 & TrainingTimesLastYear <= 5), "4-5", ">5"
+                                          )
+                                        )
+                                      )
+                                )
+         ) %>% 
+  count(binning, Attrition) %>% 
+  ggplot(aes(x=factor(binning, levels = c("0-1", "2-3", "4-5", ">5")), 
+             y=n)) +
+  geom_col(aes(fill=factor(Attrition, levels = c("Yes", "No")))) +
+  geom_text(aes(label=n, fill = factor(Attrition, levels = c("Yes", "No"))),
+            position = position_stack(vjust = 0.8, reverse = F), size=4) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 40),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  labs(
+    title="Total Completed Training",
+    fill = "Attrition", x = "Total Training Completed", y = ""
+    )
+
+experience_plot <- ggarrange(plot_exp1, plot_exp2, plot_exp3, plot_exp4,
+                      ncol = 2, nrow = 2, 
+                      common.legend = T, 
+                      legend = "bottom")
+experience_plot
+```
+
+
+
+
+# Company Survey
+
+```{r}
+#1. EnvironmentSatisfaction
+plot_sv1 <- healthcare %>% select(EnvironmentSatisfaction, Attrition) %>% 
+  count(EnvironmentSatisfaction, Attrition) %>% 
+  ggplot(aes(x=factor(EnvironmentSatisfaction), y=n)) +
+  geom_col(aes(fill=factor(Attrition, levels = c("Yes", "No")))) +
+  geom_text(aes(label=n, fill = factor(Attrition, levels = c("Yes", "No"))),
+            position = position_stack(vjust = 0.5, reverse = F)) +
+  theme_minimal() +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  labs(
+    title="Employee Satisfaction",
+    fill = "Attrition", x = "", y = ""
+    )
+
+#2. JobSatisfaction
+plot_sv2 <- healthcare %>% select(JobSatisfaction, Attrition) %>% 
+  count(JobSatisfaction, Attrition) %>% 
+  ggplot(aes(x=factor(JobSatisfaction), y=n)) +
+  geom_col(aes(fill=factor(Attrition, levels = c("Yes", "No")))) +
+  geom_text(aes(label=n, fill = factor(Attrition, levels = c("Yes", "No"))),
+            position = position_stack(vjust = 0.5, reverse = F)) +
+  theme_minimal() +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  labs(
+    title="Job Satisfaction",
+    fill = "Attrition", x = "", y = ""
+    )
+
+#3. JobInvolvement
+plot_sv3 <- healthcare %>% select(JobInvolvement, Attrition) %>% 
+  count(JobInvolvement, Attrition) %>% 
+  ggplot(aes(x=factor(JobInvolvement), y=n)) +
+  geom_col(aes(fill=factor(Attrition, levels = c("Yes", "No")))) +
+  geom_text(aes(label=n, fill = factor(Attrition, levels = c("Yes", "No"))),
+            position = position_stack(vjust = 0.5, reverse = F)) +
+  theme_minimal() +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  labs(
+    title="Job Involvement",
+    fill = "Attrition", x = "", y = ""
+    )
+
+#4. WorkLifeBalance
+plot_sv4 <- healthcare %>% select(WorkLifeBalance, Attrition) %>% 
+  count(WorkLifeBalance, Attrition) %>% 
+  ggplot(aes(x=factor(WorkLifeBalance), y=n)) +
+  geom_col(aes(fill=factor(Attrition, levels = c("Yes", "No")))) +
+  geom_text(aes(label=n, fill = factor(Attrition, levels = c("Yes", "No"))),
+            position = position_stack(vjust = 0.5, reverse = F)) +
+  theme_minimal() +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  labs(
+    title="Work Life Balance",
+    fill = "Attrition", x = "", y = ""
+    )
+
+csurvey_plot <- ggarrange(plot_sv1, plot_sv2, plot_sv3, plot_sv4,
+                      ncol = 2, nrow = 2, 
+                      common.legend = T, 
+                      legend = "bottom")
+csurvey_plot
+```
+
+
+```{r}
+healthcare %>% select(Attrition) %>% count(Attrition) %>% 
+  mutate(percent=round((n/sum(n))*100,2), 
+         lab_ypos = cumsum(percent) - 0.7*percent) %>% 
+  ggplot(aes(x=2, y=percent, fill = factor(Attrition, levels = c("Yes", "No")))) +
+  geom_bar(stat="identity", start=0) +
+  coord_polar(theta = "y", start=0) +
+  geom_text(aes(y = lab_ypos, 
+                label = paste0(percent,' ','%')), color = "white") +
+  theme_void() + theme(legend.position = "bottom") + xlim(0.5, 2.5) +
+  labs(title = "Attrition Rate in Health Care ", fill = "Attrition")
+```
+
+
+
+
+# Department
+
+```{r}
+temp_plot1 <- healthcare %>% 
+  select(Department, Attrition) %>% count(Department, Attrition) %>% 
+  group_by(Department) %>% 
+  mutate(percent = round((n/sum(n))*100,2)) %>% 
+  ggplot(aes(x=Department, y=n,
+             text=paste0('</br>Department: ', Department,
+                         '</br>Attrition Status: ', Attrition,
+                         '</br>Count: ', n,
+                         '</br>Percentage: ', percent, ' ', '%'))) +
+  geom_col(aes(fill=factor(Attrition, levels = c("Yes", "No")))) +
+  geom_text(aes(label=paste0(percent, ' ' ,'%') , fill = factor(Attrition, levels = c("Yes", "No"))),
+            position = position_stack(vjust = 0.5, reverse = F)) +
+  theme_minimal() +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  labs(title = "Attrition Rate per Department", fill = "Attrition", y = "")
+
+ggplotly(temp_plot1, tooltip="text")
+```
+
+
+```{r}
+healthcare$Gender<- as.character(healthcare$Gender)
+```
+
+
+```{r}
+temp_plot22 <- healthcare %>% 
+  select(Gender, Attrition) %>% count(Gender, Attrition) %>% 
+  group_by(Gender) %>% 
+  mutate(percent = round((n/sum(n))*100,2)) %>% 
+  ggplot(aes(x=factor(Gender), y=n,
+             text=paste0('</br>Gender: ', Gender,
+                         '</br>Attrition Status: ', Attrition,
+                         '</br>Count: ', n,
+                         '</br>Percentage: ', percent, ' ', '%'))) +
+  geom_col(aes(fill=factor(Attrition, levels = c("Yes", "No")))) +
+  geom_text(aes(label=paste0(percent, ' ' ,'%') , fill = factor(Attrition, levels = c("Yes", "No"))),
+            position = position_stack(vjust = 0.5, reverse = F)) +
+  theme_minimal() +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  labs(title = "Attrition Rate per Gender", fill = "Attrition", x = "Gender", y = "")
+
+ggplotly(temp_plot22, tooltip="text")
+```
+
+
+
+#Job Level
+
+```{r}
+temp_plot2 <- healthcare %>% 
+  select(JobLevel, Attrition) %>% count(JobLevel, Attrition) %>% 
+  group_by(JobLevel) %>% 
+  mutate(percent = round((n/sum(n))*100,2)) %>% 
+  ggplot(aes(x=factor(JobLevel), y=n,
+             text=paste0('</br>Job Level: ', JobLevel,
+                         '</br>Attrition Status: ', Attrition,
+                         '</br>Count: ', n,
+                         '</br>Percentage: ', percent, ' ', '%'))) +
+  geom_col(aes(fill=factor(Attrition, levels = c("Yes", "No")))) +
+  geom_text(aes(label=paste0(percent, ' ' ,'%') , fill = factor(Attrition, levels = c("Yes", "No"))),
+            position = position_stack(vjust = 0.5, reverse = F)) +
+  theme_minimal() +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  labs(title = "Attrition Rate per Job Level", fill = "Attrition", x = "Job Level", y = "")
+
+ggplotly(temp_plot2, tooltip="text")
+```
+
+# Around 63 % of employees were in Job Level 1 and 2. The highest attrition rate is from Job Level I (26.34 %), followed by Job Level III (14.68 %), Job Level II (9.74 %), Job Level V (7.25 %), and Job Level IV (4.72 %).
+
+
+#Salary & Satisfaction Score
+
+```{r}
+avgincome_plot1 <-  healthcare %>% 
+  select(JobRole, MonthlyIncome, Attrition) %>% 
+  group_by(JobRole, Attrition) %>% 
+  summarise(avg_monthly_income = round(mean(MonthlyIncome),2)) %>% 
+  ggplot(aes(x=JobRole, y=avg_monthly_income,
+             fill=factor(Attrition, levels = c("Yes","No")))) +
+  geom_bar(stat = "identity", position = "dodge") + 
+  geom_text(aes(x=JobRole, y=1000, 
+                label = paste0("$"," ", avg_monthly_income)),
+                fontface="bold", color="white", size = 2.5, nudge_y = 1500) +
+  facet_wrap(~Attrition) +
+  coord_flip() +
+  theme_minimal() +
+  labs(
+    x = "Job Role", y = "Average Income (dollar)",
+    fill = "Attrition",
+    title="Average Income\nby Job Role and Attrition Status"
+  ) +
+  theme(axis.text.x = element_text(angle = 90),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank())
+avgincome_plot1
+```
+
+```{r}
+median_incomevsjobsscore <- healthcare %>% select(MonthlyIncome, JobSatisfaction, Attrition) %>% 
+  group_by(JobSatisfaction, Attrition) %>% 
+  summarise(median_income = median(MonthlyIncome)) %>% 
+  ggplot(aes(x=median_income, y=JobSatisfaction, 
+             color=factor(Attrition, levels = c("Yes","No")))) +
+  geom_point(size = 4) +
+  geom_segment(aes(x = 0, xend = median_income, 
+                   y = JobSatisfaction, yend = JobSatisfaction), size = 2) +
+  geom_text(aes(x=1000, y=JobSatisfaction, 
+                label= paste0("$ ", " ", median_income)),
+            nudge_y = 0.2) + 
+  facet_wrap(~Attrition) +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        panel.grid.major.x = element_line(linetype = "dashed", colour = "grey"),
+        panel.grid.minor.x = element_line(linetype = "dashed", colour = "grey"),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank()) +
+  labs(
+    x = "Median Income (dollar)", y = "Job Satisfaction Score",
+    color = "Attrition",
+    title="Does Income affect on Job Satisfaction?\nby Attrition Status"
+  )
+median_incomevsjobsscore
+```
+
+
+```{r}
+#summary(healthcare$PercentSalaryHike)
+
+plot_subsalary1 <- healthcare %>% select(PercentSalaryHike, Attrition) %>% 
+  count(PercentSalaryHike, Attrition) %>% 
+  group_by(PercentSalaryHike) %>% mutate(percent = round((n/sum(n))*100,2)) %>% 
+  ggplot(aes(x=factor(PercentSalaryHike), y=n,
+             text=paste0('</br>Salary Hike Last Year (in percent): ', PercentSalaryHike,
+                         '</br>Attrition Status: ', Attrition,
+                         '</br>Count: ', n,
+                         '</br>Percentage: ', percent, ' ', '%'))) +
+  geom_col(aes(fill=factor(Attrition, levels = c("Yes", "No")))) +
+  geom_text(aes(label=paste0(percent, ' ' ,'%') , fill = factor(Attrition, levels = c("Yes", "No"))),
+            angle=90, fontface="bold", color="white", size=2,
+            position = position_stack(vjust = 0.5, reverse = F)) +
+  theme_minimal() +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  labs(title = "Attrition Rate per Salary Hike Last Year\n in percent", fill = "Attrition", x = "Salary Hike (%)", y = "")
+
+ggplotly(plot_subsalary1, tooltip="text")  
+```
+
+
+
+```{r}
+healthcare %>% select(EnvironmentSatisfaction, JobRole, Attrition) %>% 
+  group_by(JobRole, Attrition) %>% 
+  summarize(avg_env_score = round(mean(EnvironmentSatisfaction),2)) %>% 
+  ggplot(aes(x=JobRole,y=avg_env_score)) +
+  geom_line(aes(group=Attrition), linetype= "twodash", size=1) +
+  geom_point(aes(color=Attrition), size=3) + 
+  theme_minimal() +
+  theme(legend.position = "top", axis.text.x = element_text(angle = 90),
+        axis.line = element_line(colour = "grey", 
+                      size = 0.7, linetype = "solid"),
+        panel.grid.major.x = element_line(size = 0.5, linetype = "dashed", colour = "lightgray"),
+        panel.grid.minor.x = element_line(size = 0.5, linetype = "dashed", colour = "lightgray"),
+        panel.grid.major.y = element_line(size = 0.5,linetype = "dashed", colour = "lightgray")) +
+  labs(
+    x = "", y = "Average Score",
+    fill = "Attrition",
+    title = "Average Environtment Satisfaction Score\nper Job Role"
+  )
+```
+
+
+```{r}
+temp_plot4 <- healthcare %>% 
+  select(Gender, MaritalStatus, Attrition) %>% count(Gender, MaritalStatus, Attrition) %>% 
+  group_by(Gender, MaritalStatus) %>% 
+  mutate(percent = round((n/sum(n))*100,2)) %>% 
+  ggplot(aes(x=factor(MaritalStatus), y=n,
+             text=paste0('</br>Gender: ', Gender,
+                         '</br>Marital Status: ', MaritalStatus,
+                         '</br>Attrition Status: ', Attrition,
+                         '</br>Count: ', n,
+                         '</br>Percentage: ', percent, ' ', '%'))) +
+  geom_col(aes(fill=factor(Attrition, levels = c("Yes", "No")))) +
+  facet_wrap(~Gender) +
+  geom_text(aes(label=paste0(percent, ' ' ,'%') , fill = factor(Attrition, levels = c("Yes", "No"))),
+            position = position_stack(vjust = 0.5, reverse = F)) +
+  theme_minimal() +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  labs(title = "Attrition Rate per Job Level", fill = "Attrition", x = "Marital Status", y = "")
+
+ggplotly(temp_plot4, tooltip="text")
+```
+
+
+
+
+
+
+
+# Chi-Square Test for Feature Selection
+
+
+```{r}
+chisq.test(healthcare$BusinessTravel, healthcare$Attrition)
+chisq.test(healthcare$Department, healthcare$Attrition)
+chisq.test(healthcare$Education, healthcare$Attrition)
+chisq.test(healthcare$EducationField, healthcare$Attrition)
+chisq.test(healthcare$EnvironmentSatisfaction, healthcare$Attrition)
+chisq.test(healthcare$Gender, healthcare$Attrition)
+chisq.test(healthcare$JobInvolvement, healthcare$Attrition)
+chisq.test(healthcare$JobRole, healthcare$Attrition)
+chisq.test(healthcare$JobSatisfaction, healthcare$Attrition)
+chisq.test(healthcare$MaritalStatus, healthcare$Attrition)
+chisq.test(healthcare$PerformanceRating, healthcare$Attrition)
+chisq.test(healthcare$OverTime, healthcare$Attrition)
+chisq.test(healthcare$RelationshipSatisfaction, healthcare$Attrition)
+chisq.test(healthcare$WorkLifeBalance, healthcare$Attrition)
+```
+```{r}
+library(knitr)
+chisq_results = 
+  data.frame(Variable = c("Business Travel",
+                          "Department", 
+                          "Education",
+                          "Education Field",
+                          "Environment Satisfaction",
+                          "Gender",
+                          "Job Involvement", 
+                          "Job Role",
+                          "Job Satisfaction",
+                          "Marital Status",
+                          "Over Time",
+                          "Performance Rating",
+                          "Relationship Satisfaction",
+                          #"Stock Option Level",
+                          "Work Life Balance"),
+             Chi_Sq_Stat = c(13.59,
+                             8.01, 
+                             9.06, 
+                             7.87,
+                             23.31,
+                             0.59,
+                             52.00,
+                             43.64,
+                            11.49,
+                             72.48,
+                             0.11,
+                             188.47,
+                             1.57,
+                             25.06),
+             P_value = c(0.00,
+                         0.01,
+                         0.05, 
+                         0.16,
+                         0.00,
+                         0.44,
+                         0.00,
+                         0.00,
+                         0.00,
+                         0.00,
+                         0.73,
+                         0.00,
+                         0.66,
+                         0.00),
+             Stat_Sig = c("Yes",
+                          "Yes",
+                          "No",
+                          "No",
+                          "Yes",
+                          "No",
+                          "Yes",
+                          "Yes",
+                          "Yes",
+                          "Yes",
+                          "No",
+                          "Yes",
+                          "No",
+                          "Yes"))
+
+kable(chisq_results, 
+      col.names = c("Variable","Chi-Square Statistic", "p-value", "Statistically Significant"))
+```
+
+# ANOVA for Feature Selection
+
+
+```{r}
+library(stats)
+
+# ANOVA: Distance From Home and Attrition 
+aov.res = aov(DistanceFromHome~Attrition, data = healthcare)
+summary(aov.res)
+leveneTest(aov.res)
+#oneway.test(DistanceFromHome~Attrition, data = healthcare, var.equal = FALSE)
+
+
+
+# ANOVA: Monthly Income and Attrition 
+aov.res = aov(MonthlyIncome~Attrition, data = healthcare)
+summary(aov.res)
+leveneTest(aov.res)
+#oneway.test(MonthlyIncome~Attrition, data = healthcare, var.equal = FALSE)
+```
+
+
+
+```{r}
+anova_results = 
+  data.frame(Variable = c("Distance From Home",
+                          "Monthly Income"),
+             F_Stat = c(18.87,
+                        65.14),
+             P_value = c(0.00,
+                         0.00),
+             Levene_Test = c(0.001,
+                             0.00),
+             Stat_Sig = c("Yes",
+                          "Yes"))
+
+kable(anova_results , 
+      col.names = c("Variable","F Statistic", "p-value", "Levene's Test p-value","Statistically Significant"))
+```
+
+
+```{r}
+healthcare2<- healthcare
+```
+
+
+## REGRESSION 
+
+# GLM
+
+```{r}
+#extract all yes and nos from y
+healthcare_yes <- healthcare %>% filter(Attrition=='Yes') #total 199 obs
+healthcare_no <- healthcare%>% filter(Attrition=='No')
+
+#sample 199 obs from Attrition=='No'
+set.seed(200)
+healthcare_no_sample<- sample_n(healthcare_no, 199)
+
+#combine sample nos and all yes' for a balanced data set
+healthcare <- rbind(healthcare_no_sample, healthcare_yes)
+dim(healthcare)
+```
+
+```{r}
+healthcare$Attrition<- ifelse(healthcare$Attrition =="Yes", 1, 0)  
+```
+
+
+```{r}
+#80/20 train/test split
+set.seed(200)
+sample <- sample(nrow(healthcare), 0.8*nrow(healthcare), replace= F)
+train<-  healthcare[sample, ]
+test<- healthcare[-sample, ]
+```
+
+
+# ATTEMPT #1 - Fit entire model - Complex
+
+```{r}
+glm.fit1<- glm(Attrition~., data=train, family = binomial())
+
+summary(glm.fit1)
+```
+
+
+```{r}
+#MASS package
+step(glm.fit1, direction = "both")
+```
+
+
+```{r}
+glm.fit2<- glm(Attrition ~ Age + BusinessTravel + Department + 
+    DistanceFromHome + EnvironmentSatisfaction + JobInvolvement + 
+    JobRole + JobSatisfaction + MaritalStatus + NumCompaniesWorked + 
+    OverTime + PercentSalaryHike + TrainingTimesLastYear + WorkLifeBalance + 
+    YearsInCurrentRole + YearsSinceLastPromotion + YearsWithCurrManager, 
+    family = binomial(), data = train)
+
+#summary(glm.fit2)
+
+```
+
+```{r}
+#predictions saved to test df
+test$GLM2Predsx <- predict(glm.fit2, test, type='response')
+
+#covert probability predictions to yes/no format to match y (response variable)
+test$GLM2Preds <- ifelse(test$GLM2Predsx>=0.5, 1 ,0 )
+
+# Confusion matrix to compare accuracy
+caret::confusionMatrix(as.factor(test$GLM2Preds), as.factor(test$Attrition))
+```
+
+
+# #Decision Tree Model
+```{r}
+library(rpart)
+dt.model = rpart(Attrition~., 
+                             data = train)
+
+
+
+
+set.seed(200)
+
+dt.model <- rpart(formula = Attrition~., # Y ~ all other variables in dataframe
+                  data = train, # include only relevant variables
+                  method = "class") # classification
+
+rattle::fancyRpartPlot(dt.model, sub = "")
+```
+
+
+```{r}
+dt.model$variable.importance
+```
+
+
+```{r}
+printcp(dt.model)
+```
+
+```{r}
+plotcp(dt.model)
+```
+
+```{r}
+library(rpart.plot)
+dt.model_2 <- prune(dt.model, 
+                  cp = dt.model$cptable[which.min(dt.model$cptable[, "xerror"]), "CP"])
+#rm(oj.full_class)
+rpart.plot(dt.model_2, yesno = TRUE)
+```
+
+
+```{r}
+dt.pred <- predict(dt.model_2, test, type = "class")
+plot(as.factor(test$Attrition), dt.pred, 
+     main = "Simple Classification: Predicted vs. Actual",
+     xlab = "Actual",
+     ylab = "Predicted")
+```
+
+
+```{r}
+caret::confusionMatrix(dt.pred, as.factor(test$Attrition))
+```
+
+
+
+
+# RANDOM FOREST 
+
+
+```{r}
+library(randomForestSRC)
+library(randomForest)
+
+set.seed(123)
+
+forest_attrition = randomForest( as.factor(Attrition)~., 
+                     data = train,
+                     mtry = 4,
+                     importance = TRUE,
+                     nodesize = 6,
+                     ntree = 4000)
+
+
+forest_attrition 
+
+
+```
+
+```{r}
+forest_attrition$importance
+```
+
+
+```{r}
+pred1_att = predict(forest_attrition,newdata = test)
+```
+
+# Accuracy Random Forest
+
+```{r}
+caret::confusionMatrix(pred1_att, as.factor(test$Attrition))
+```
+
+
